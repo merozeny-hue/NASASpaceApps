@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<!-- saved from url=(0040)file:///C:/Users/TECHNICAL/Desktop/.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Living in Space Sliding Puzzle</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to right, #1e3c72, #2a5298);
+      color: white;
+      text-align: center;
+      padding: 50px;
+    }
+    h1 {
+      font-size: 36px;
+      margin-bottom: 20px;
+    }
+    button {
+      margin: 10px;
+      padding: 15px 30px;
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.3s;
+      color: white;
+    }
+    .game-btn {
+      background: linear-gradient(to right, #ff416c, #ff4b2b);
+    }
+    .info-btn {
+      background: linear-gradient(to right, #56ccf2, #2f80ed);
+    }
+    .quiz-btn {
+      background: linear-gradient(to right, #11998e, #38ef7d);
+    }
+    button:hover {
+      transform: scale(1.1);
+      opacity: 0.9;
+    }
+    #display {
+      margin-top: 30px;
+      font-size: 22px;
+      font-weight: bold;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      border-radius: 10px;
+      min-height: 400px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: white;
+    }
+    #puzzle {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-template-rows: repeat(3, 100px);
+      gap: 3px;
+      margin-top: 20px;
+    }
+    .tile {
+      width: 100px;
+      height: 100px;
+      border-radius: 10px;
+      box-shadow: 0 0 5px #000;
+      cursor: pointer;
+      user-select: none;
+      transition: background-position 0.3s ease;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+      font-size: 24px;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+    .empty {
+      background: none !important;
+      box-shadow: none !important;
+      cursor: default !important;
+    }
+    #shuffle-btn {
+      margin-top: 15px;
+      padding: 10px 25px;
+      font-size: 16px;
+      border-radius: 6px;
+      background: #ff4b2b;
+      border: none;
+      cursor: pointer;
+      color: white;
+      font-weight: bold;
+      transition: 0.3s;
+    }
+    #shuffle-btn:hover {
+      opacity: 0.8;
+    }
+    #message {
+      margin-top: 15px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #a8ffb0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌌 Living in Space 🌌</h1>
+  <p>Click a button to explore!</p>
+  <button class="info-btn" onclick="showInfo()">Space Info 📘</button>
+  <button class="quiz-btn" onclick="showQuiz()">Take Quiz 📝</button>
+  <button class="game-btn" onclick="showGame()">Play Game 🎮</button>
+
+  <div id="display">Choose an option above ⬆</div>
+
+  <script>
+    const size = 3;
+    let tiles = []; // store tile divs
+    let positions = []; // store current tile indices by position: positions[pos] = tileIndex or -1 for empty
+    let emptyPos = size * size - 1; // empty tile position index (starts bottom-right)
+    let isGameActive = false;
+
+    // Planet images for tiles 0 to 7 (tile 8 is empty)
+    const planetImages = [
+      'https://upload.wikimedia.org/wikipedia/commons/4/4a/Mercury_in_true_color.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/e/e5/Venus-real_color.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/9/97/The_Earth_seen_from_Apollo_17.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/e/e2/Jupiter.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/c/c7/Saturn_during_Equinox.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/3/3d/Uranus2.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/5/56/Neptune_Full.jpg'
+    ];
+
+    function createPuzzle() {
+      const display = document.getElementById('display');
+      display.innerHTML = `
+        <div>
+          <h2>🚀 Sliding Puzzle Game</h2>
+          <div id="puzzle"></div>
+          <button id="shuffle-btn">Shuffle</button>
+          <div id="message"></div>
+          <p>Click a tile adjacent to the empty space to move it.</p>
+        </div>
+      `;
+
+      const puzzle = document.getElementById('puzzle');
+      tiles = [];
+      positions = [];
+
+      // Initialize positions with tile indices 0..7 and -1 for empty tile at end
+      for(let i=0; i < size*size -1; i++) {
+        positions[i] = i;
+      }
+      positions[size*size -1] = -1; // empty tile
+
+      emptyPos = size*size -1;
+
+      // Create tile divs
+      puzzle.innerHTML = '';
+      for(let pos=0; pos < size*size; pos++) {
+        const tile = document.createElement('div');
+        tile.classList.add('tile');
+        tile.dataset.pos = pos;
+        tile.addEventListener('click', () => tileClicked(pos));
+        tiles.push(tile);
+        puzzle.appendChild(tile);
+      }
+      updateTiles();
+
+      document.getElementById('shuffle-btn').addEventListener('click', shufflePuzzle);
+      isGameActive = true;
+      document.getElementById('message').textContent = '';
+    }
+
+    // Update tile divs backgrounds and classes based on positions array
+    function updateTiles() {
+      for(let pos=0; pos < size*size; pos++) {
+        const tileIndex = positions[pos];
+        const tile = tiles[pos];
+
+        if(tileIndex === -1) {
+          tile.classList.add('empty');
+          tile.style.backgroundImage = 'none';
+          tile.textContent = '';
+          tile.style.cursor = 'default';
+        } else {
+          tile.classList.remove('empty');
+          tile.style.backgroundImage = `url('${planetImages[tileIndex]}')`;
+          tile.textContent = '';
+          tile.style.cursor = 'pointer';
+        }
+      }
+    }
+
+    function tileClicked(pos) {
+      if(!isGameActive) return;
+
+      // Check if clicked tile is adjacent to emptyPos
+      if(isAdjacent(pos, emptyPos)) {
+        // Swap clicked tile with empty
+        positions[emptyPos] = positions[pos];
+        positions[pos] = -1;
+        emptyPos = pos;
+        updateTiles();
+        if(checkWin()) {
+          document.getElementById('message').textContent = '🎉 You solved the puzzle! 🎉';
+          isGameActive = false;
+        } else {
+          document.getElementById('message').textContent = '';
+        }
+      }
+    }
+
+    // Returns true if pos1 and pos2 are adjacent positions on grid
+    function isAdjacent(pos1, pos2) {
+      const r1 = Math.floor(pos1 / size);
+      const c1 = pos1 % size;
+      const r2 = Math.floor(pos2 / size);
+      const c2 = pos2 % size;
+      return (r1 === r2 && Math.abs(c1 - c2) === 1) || (c1 === c2 && Math.abs(r1 - r2) === 1);
+    }
+
+    // Shuffle by simulating many random valid moves
+    function shufflePuzzle() {
+      if(!isGameActive) return;
+      let moves = 0;
+      while(moves < 100) {
+        const neighbors = getNeighbors(emptyPos);
+        const randNeighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
+        // Swap empty with neighbor
+        positions[emptyPos] = positions[randNeighbor];
+        positions[randNeighbor] = -1;
+        emptyPos = randNeighbor;
+        moves++;
+      }
+      updateTiles();
+      document.getElementById('message').textContent = 'Puzzle shuffled! Try to solve it!';
+      isGameActive = true;
+    }
+
+    function getNeighbors(pos) {
+      const neighbors = [];
+      const r = Math.floor(pos / size);
+      const c = pos % size;
+      if(c > 0) neighbors.push(pos - 1);
+      if(c < size - 1) neighbors.push(pos + 1);
+      if(r > 0) neighbors.push(pos - size);
+      if(r < size - 1) neighbors.push(pos + size);
+      return neighbors;
+    }
+
+    function checkWin() {
+      for(let i=0; i < size*size -1; i++) {
+        if(positions[i] !== i) return false;
+      }
+      return true;
+    }
+
+    function showGame() {
+      createPuzzle();
+    }
+
+    function showInfo() {
+      document.getElementById('display').innerHTML = 
+        "<h2>Why can't we live in space?</h2><p>Because it doesn't contain our living essentials like: no oxygen, extreme temperatures, radiation, microgravity, and no natural resources.</p>" +
+        "<h2>What is the temperature of space?</h2><p>Space temperature can range from -270°C to millions of degrees Celsius.</p>";
+    }
+
+    function showQuiz() {
+  document.getElementById('display').innerHTML =
+    "<h2>📝 Space Quiz</h2><p>Q: What is the order of the dwarf planets from big to small? <br><br><b>A:</b> 1. Eris 2. Pluto 3. Makemake 4. Haumea 5. Ceres</p>" +
+    "<h2>📝 Space Quiz</h2><p>Q: What is the largest planet in our solar system? <br><br><b>A:</b> c) Jupiter</p>" +
+    "<h2>📝 Space Quiz</h2><p>Q: What is the farthest human-made object from Earth? <br><br><b>A:</b> c) Voyager 1</p>" +
+    "<h2>📝 Space Quiz</h2><p>Q: What is the term for a star that has exploded and become incredibly bright?<br><br><b>A:</b> b) Supernova</p>" +
+    "<h2>📝 Space Quiz</h2><p>Q: What is the primary challenge for humans living in space?<br><br><b>A:</b> d) All of the above</p>" +
+    "<h2>📝 Space Quiz</h2><p>Q: What is a potential source of water for future space missions?<br><br><b>A:</b> d) All of the above</p>" +
+    "<h2>📝 Space Quiz</h2><p>Q: What is a key consideration for designing space habitats?<br><br><b>A:</b> d) All of the above</p>" +
+    "<h2>📝 Space Quiz</h2><p>Q: Which spacecraft landed humans on the Moon?<br><br><b>A:</b> a) Apollo 11</p>" +
+    "<h2>📝 Space Quiz</h2><p>Q: What is the primary goal of NASA's Artemis program?<br><br><b>A:</b> b) To establish a sustainable human presence on the Moon</p>" +
+    "<h2>📝 Space Quiz</h2><p>Q: Which space agency is planning to send humans to Mars in the 2030s?<br><br><b>A:</b> a) NASA (although SpaceX is also working toward this goal)</p>";
+}
+
+  </script>
+
+
+</body></html>
